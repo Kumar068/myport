@@ -30,6 +30,8 @@ const IMG = {
   ecom: "https://images.unsplash.com/photo-1757301714935-c8127a21abc6?w=900&h=600&fit=crop&auto=format",
   mobile: "https://images.unsplash.com/photo-1551721434-8b94ddff0e6d?w=600&h=900&fit=crop&auto=format",
   portrait: "https://images.unsplash.com/photo-1735948055457-8d816fb80a87?w=800&h=1000&fit=crop&auto=format",
+  stock1: "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=900&h=600&fit=crop&auto=format",
+  stock2: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=900&h=600&fit=crop&auto=format",
 };
 
 // ─── Noise SVG overlay (premium texture) ─────────────────────────────────────
@@ -984,6 +986,18 @@ function Projects() {
       bg: dark ? "linear-gradient(135deg,#1A1500,#0F0E00)" : "linear-gradient(135deg,#FFFBEB,#F8FAFC)",
       link: "https://www.figma.com/design/Peza3mSCpvI1Eq2Cp07psY/Riders-Connect-Case-Study?m=auto&t=mtAU6xvtRI51bia4-1",
     },
+    {
+      title: "Stock Market News Platform",
+      desc: "Real-time financial market tracker and news aggregation hub. Featuring high-density data tables, responsive interactive charts, and tailored stock alert configurations.",
+      tags: ["Figma", "UX/UI Design", "Data Visualization", "Finance"],
+      img: IMG.stock1,
+      preview: IMG.stock2,
+      num: "05",
+      year: "2025",
+      accent: dark ? "#A78BFA" : "#7C3AED",
+      bg: dark ? "linear-gradient(135deg,#1E112C,#0F0816)" : "linear-gradient(135deg,#F5F3FF,#F8FAFC)",
+      link: "https://www.figma.com/design/tRokg4vrgjbyfc5kJCDHxs/stock-news-update?m=auto&t=JirJrfYn67enI9LN-1",
+    },
   ];
 
   useEffect(() => {
@@ -1058,7 +1072,7 @@ function Projects() {
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
                   <div className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold text-white"
                     style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.25)" }}>
-                    {p.link && p.link.startsWith("http") ? "View Live Site" : "View Case Study"} <ExternalLink size={12} />
+                    {p.link && p.link.includes("figma.com") ? "View Case Study" : p.link && p.link.startsWith("http") ? "View Live Site" : "View Case Study"} <ExternalLink size={12} />
                   </div>
                 </div>
                 {/* Year badge */}
