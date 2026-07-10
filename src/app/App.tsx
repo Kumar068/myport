@@ -705,7 +705,7 @@ function Skills() {
             <span className="text-5xl mb-4 block">✦</span>
             <h3 className="text-2xl font-black text-foreground mb-4" style={{ fontFamily: "'Clash Display',sans-serif" }}>Design</h3>
             <div className="flex flex-wrap gap-2">
-              {["Figma", "Adobe XD", "FigJam", "UI/UX Design", "Wireframing", "Prototyping", "Design Systems", "IA"].map((s) => (
+              {["Figma", "Adobe XD", "FigJam", "UI/UX Design", "Wireframing", "Prototyping", "Design Systems", "AI"].map((s) => (
                 <span key={s} className="text-xs font-medium px-3 py-1.5 rounded-full border border-border text-muted-foreground hover:text-primary hover:border-primary/30 transition-colors cursor-default"
                   style={{ background: dark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)" }}>
                   {s}
@@ -933,9 +933,12 @@ function Experience() {
 function Projects() {
   const { dark } = useTheme();
   const sectionRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
+  const [constraints, setConstraints] = useState({ left: 0, right: 0 });
+  const isDragging = useRef(false);
 
   const projects = [
     {
@@ -1001,32 +1004,52 @@ function Projects() {
   ];
 
   useEffect(() => {
-    if (!sectionRef.current || !trackRef.current) return;
-    const ctx = gsap.context(() => {
-      const total = trackRef.current!.scrollWidth - window.innerWidth + 80;
-      gsap.to(trackRef.current, {
-        x: -total,
-        ease: "none",
-        scrollTrigger: {
-          trigger: sectionRef.current,
-          start: "top top",
-          end: () => `+=${total + 300}`,
-          pin: true,
-          scrub: 0.8,
-          anticipatePin: 1,
-        },
-      });
-    }, sectionRef);
-    return () => ctx.revert();
-  }, [dark]);
+    const updateConstraints = () => {
+      if (containerRef.current && trackRef.current) {
+        const containerWidth = containerRef.current.offsetWidth;
+        const trackWidth = trackRef.current.scrollWidth;
+        const maxDrag = trackWidth - containerWidth;
+        setConstraints({
+          left: maxDrag > 0 ? -maxDrag : 0,
+          right: 0,
+        });
+      }
+    };
+
+    updateConstraints();
+    const timer = setTimeout(updateConstraints, 100);
+
+    window.addEventListener("resize", updateConstraints);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("resize", updateConstraints);
+    };
+  }, [projects]);
 
   const onMouseMove = (e: React.MouseEvent) => {
     setCursorPos({ x: e.clientX, y: e.clientY });
   };
 
+  const handleDragStart = () => {
+    isDragging.current = true;
+  };
+
+  const handleDragEnd = () => {
+    setTimeout(() => {
+      isDragging.current = false;
+    }, 50);
+  };
+
+  const handleLinkClick = (e: React.MouseEvent) => {
+    if (isDragging.current) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
+
   return (
     <section id="work" ref={sectionRef} className="h-screen overflow-hidden" onMouseMove={onMouseMove}>
-      <div className="h-full flex flex-col">
+      <div className="h-full flex flex-col justify-center">
         {/* Header */}
         <div className="px-6 pt-20 pb-8 max-w-7xl mx-auto w-full flex items-end justify-between shrink-0">
           <div>
@@ -1042,75 +1065,88 @@ function Projects() {
           </p>
         </div>
 
-        {/* Horizontal track */}
-        <div ref={trackRef} className="flex gap-5 px-6 pb-6 will-change-transform shrink-0" style={{ width: "max-content" }}>
-          {projects.map((p, i) => (
-            <motion.a
-              key={i}
-              href={p.link}
-              target={p.link && p.link !== "#" ? "_blank" : undefined}
-              rel={p.link && p.link !== "#" ? "noopener noreferrer" : undefined}
-              className="relative w-[min(82vw,440px)] shrink-0 rounded-2xl overflow-hidden border border-border group block"
-              style={{ background: p.bg, minHeight: 480 }}
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.1 }}
-              onMouseEnter={() => setHoveredIdx(i)}
-              onMouseLeave={() => setHoveredIdx(null)}
-              data-cursor="hover"
-            >
-              {/* Image */}
-              <div className="relative h-56 overflow-hidden bg-gray-900">
-                <img
-                  src={p.img}
-                  alt={p.title}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-                {/* Hover overlay */}
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
-                  <div className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold text-white"
-                    style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.25)" }}>
-                    {p.link && p.link.includes("figma.com") ? "View Case Study" : p.link && p.link.startsWith("http") ? "View Live Site" : "View Case Study"} <ExternalLink size={12} />
+        {/* Drag Container */}
+        <div ref={containerRef} className="w-full overflow-hidden cursor-grab active:cursor-grabbing">
+          {/* Horizontal track */}
+          <motion.div
+            ref={trackRef}
+            drag="x"
+            dragConstraints={constraints}
+            dragElastic={0.15}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            className="flex gap-5 px-6 pb-6 will-change-transform shrink-0 touch-pan-y"
+            style={{ width: "max-content" }}
+          >
+            {projects.map((p, i) => (
+              <motion.a
+                key={i}
+                href={p.link}
+                onClick={handleLinkClick}
+                target={p.link && p.link !== "#" ? "_blank" : undefined}
+                rel={p.link && p.link !== "#" ? "noopener noreferrer" : undefined}
+                className="relative w-[min(82vw,440px)] shrink-0 rounded-2xl overflow-hidden border border-border group block"
+                style={{ background: p.bg, minHeight: 480 }}
+                initial={{ opacity: 0, y: 40 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                onMouseEnter={() => setHoveredIdx(i)}
+                onMouseLeave={() => setHoveredIdx(null)}
+                data-cursor="hover"
+              >
+                {/* Image */}
+                <div className="relative h-56 overflow-hidden bg-gray-900">
+                  <img
+                    src={p.img}
+                    alt={p.title}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                  {/* Hover overlay */}
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
+                    <div className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold text-white"
+                      style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.25)" }}>
+                      {p.link && p.link.includes("figma.com") ? "View Case Study" : p.link && p.link.startsWith("http") ? "View Live Site" : "View Case Study"} <ExternalLink size={12} />
+                    </div>
+                  </div>
+                  {/* Year badge */}
+                  <div className="absolute top-4 right-4 px-3 py-1 rounded-full text-xs font-mono font-medium text-white"
+                    style={{ background: "rgba(0,0,0,0.4)", backdropFilter: "blur(8px)" }}>
+                    {p.year}
                   </div>
                 </div>
-                {/* Year badge */}
-                <div className="absolute top-4 right-4 px-3 py-1 rounded-full text-xs font-mono font-medium text-white"
-                  style={{ background: "rgba(0,0,0,0.4)", backdropFilter: "blur(8px)" }}>
-                  {p.year}
-                </div>
-              </div>
 
-              {/* Content */}
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-3">
-                  <span className="text-xs font-black opacity-30" style={{ fontFamily: "'Clash Display',sans-serif" }}>
-                    {p.num}
-                  </span>
-                  <ArrowUpRight size={16} className="text-muted-foreground group-hover:text-foreground transition-colors group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-200" />
-                </div>
-                <h3 className="text-xl font-black text-foreground mb-2" style={{ fontFamily: "'Clash Display',sans-serif" }}>
-                  {p.title}
-                </h3>
-                <p className="text-sm text-muted-foreground leading-relaxed mb-5 line-clamp-3">{p.desc}</p>
-                <div className="flex flex-wrap gap-2">
-                  {p.tags.map((t) => (
-                    <span key={t} className="text-xs px-2.5 py-1 rounded-full font-medium"
-                      style={{ color: p.accent, background: `${p.accent}12`, border: `1px solid ${p.accent}25` }}>
-                      {t}
+                {/* Content */}
+                <div className="p-6">
+                  <div className="flex items-start justify-between mb-3">
+                    <span className="text-xs font-black opacity-30" style={{ fontFamily: "'Clash Display',sans-serif" }}>
+                      {p.num}
                     </span>
-                  ))}
+                    <ArrowUpRight size={16} className="text-muted-foreground group-hover:text-foreground transition-colors group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-200" />
+                  </div>
+                  <h3 className="text-xl font-black text-foreground mb-2" style={{ fontFamily: "'Clash Display',sans-serif" }}>
+                    {p.title}
+                  </h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed mb-5 line-clamp-3">{p.desc}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {p.tags.map((t) => (
+                      <span key={t} className="text-xs px-2.5 py-1 rounded-full font-medium"
+                        style={{ color: p.accent, background: `${p.accent}12`, border: `1px solid ${p.accent}25` }}>
+                        {t}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              {/* Bottom rim glow on hover */}
-              <div
-                className="absolute bottom-0 left-4 right-4 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                style={{ background: `linear-gradient(90deg,transparent,${p.accent},transparent)` }}
-              />
-            </motion.a>
-          ))}
+                {/* Bottom rim glow on hover */}
+                <div
+                  className="absolute bottom-0 left-4 right-4 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                  style={{ background: `linear-gradient(90deg,transparent,${p.accent},transparent)` }}
+                />
+              </motion.a>
+            ))}
+          </motion.div>
         </div>
       </div>
 
