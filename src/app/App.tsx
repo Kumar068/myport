@@ -939,8 +939,9 @@ function Projects() {
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
   const [constraints, setConstraints] = useState({ left: 0, right: 0 });
   const isDragging = useRef(false);
+  const x = useMotionValue(0);
 
-  const projects = [
+  const projects = useMemo(() => [
     {
       title: "HR Management System",
       desc: "Intuitive dashboards and employee workflows for enterprise HR operations. End-to-end UX research, wireframing, and React implementation.",
@@ -1001,7 +1002,7 @@ function Projects() {
       bg: dark ? "linear-gradient(135deg,#1E112C,#0F0816)" : "linear-gradient(135deg,#F5F3FF,#F8FAFC)",
       link: "https://www.figma.com/design/tRokg4vrgjbyfc5kJCDHxs/stock-news-update?m=auto&t=JirJrfYn67enI9LN-1",
     },
-  ];
+  ], [dark]);
 
   useEffect(() => {
     const updateConstraints = () => {
@@ -1009,10 +1010,16 @@ function Projects() {
         const containerWidth = containerRef.current.offsetWidth;
         const trackWidth = trackRef.current.scrollWidth;
         const maxDrag = trackWidth - containerWidth;
+        const newLeft = maxDrag > 0 ? -maxDrag : 0;
         setConstraints({
-          left: maxDrag > 0 ? -maxDrag : 0,
+          left: newLeft,
           right: 0,
         });
+        if (x.get() < newLeft) {
+          x.set(newLeft);
+        } else if (x.get() > 0) {
+          x.set(0);
+        }
       }
     };
 
@@ -1024,7 +1031,40 @@ function Projects() {
       clearTimeout(timer);
       window.removeEventListener("resize", updateConstraints);
     };
-  }, [projects]);
+  }, [projects, x]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      const deltaX = e.deltaX;
+      const deltaY = e.deltaY;
+      const currentX = x.get();
+
+      // If there is horizontal scroll delta, handle it
+      if (Math.abs(deltaX) > Math.abs(deltaY)) {
+        e.preventDefault();
+        let targetX = currentX - deltaX;
+        targetX = Math.max(constraints.left, Math.min(0, targetX));
+        x.set(targetX);
+      } else if (Math.abs(deltaY) > 0) {
+        // For vertical scroll delta, if we want to scroll the carousel horizontally:
+        // Scroll horizontal if we aren't at the end/beginning of projects
+        if ((deltaY > 0 && currentX > constraints.left) || (deltaY < 0 && currentX < 0)) {
+          e.preventDefault();
+          let targetX = currentX - deltaY;
+          targetX = Math.max(constraints.left, Math.min(0, targetX));
+          x.set(targetX);
+        }
+      }
+    };
+
+    container.addEventListener("wheel", handleWheel, { passive: false });
+    return () => {
+      container.removeEventListener("wheel", handleWheel);
+    };
+  }, [constraints, x]);
 
   const onMouseMove = (e: React.MouseEvent) => {
     setCursorPos({ x: e.clientX, y: e.clientY });
@@ -1076,7 +1116,7 @@ function Projects() {
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
             className="flex gap-5 px-6 pb-6 will-change-transform shrink-0 touch-pan-y"
-            style={{ width: "max-content" }}
+            style={{ x, width: "max-content" }}
           >
             {projects.map((p, i) => (
               <motion.a
@@ -1293,6 +1333,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [loaded, setLoaded] = useState(false);
   const toggle = useCallback(() => setDark((d) => !d), []);
+  const handlePreloaderDone = useCallback(() => setLoading(false), []);
 
   useEffect(() => { document.documentElement.classList.toggle("dark", dark); }, [dark]);
 
@@ -1322,7 +1363,7 @@ export default function App() {
         <ScrollProgress />
 
         <AnimatePresence onExitComplete={() => setLoaded(true)}>
-          {loading && <Preloader key="loader" onDone={() => setLoading(false)} />}
+          {loading && <Preloader key="loader" onDone={handlePreloaderDone} />}
         </AnimatePresence>
 
         {loaded && (
